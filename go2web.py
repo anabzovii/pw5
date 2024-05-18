@@ -1,10 +1,38 @@
 import argparse
-from bs4 import BeautifulSoup
 import re
+import socket
 import requests
 
-def create_request(webpage_url):
-    return requests.get(webpage_url).text
+from bs4 import BeautifulSoup
+
+def get_webpage(url):
+    # Parse the URL to get host and path
+    host = url.split('/')[2]
+    path = '/' + '/'.join(url.split('/')[3:])
+
+    # Create a socket object
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    # Connect to the server
+    s.connect((host, 80))
+
+    # Send the GET request
+    request = f"GET {path} HTTP/1.1\r\nHost: {host}\r\n\r\n"
+    s.send(request.encode())
+
+    # Receive the response
+    response = b""
+    while True:
+        data = s.recv(1024)
+        if not data:
+            break
+        response += data
+
+    # Close the connection
+    s.close()
+
+    # Return the response
+    return response.decode("utf-8")
 
 def request_viorica(key_word):
     search_url = f"https://viorica.md/?s={key_word}"
@@ -19,6 +47,7 @@ def request_viorica(key_word):
             print(f"{number_of_item}. {url.text} - {url['href']}")
             number_of_item += 1
 
+
 argument_reader = argparse.ArgumentParser(description="Help options:")
 group = argument_reader.add_mutually_exclusive_group(required=True)
 group.add_argument("-u", "--call_page_url", help="Request to a input url")
@@ -27,6 +56,6 @@ group.add_argument("-s", "--key_word", help="Find 10 links on the first page fro
 arguments = argument_reader.parse_args()
 
 if arguments.call_page_url:
-    print(create_request(arguments.call_page_url))
+    print(get_webpage(arguments.call_page_url))
 elif arguments.key_word:
     request_viorica(arguments.key_word)
